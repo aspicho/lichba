@@ -1,0 +1,28 @@
+Overworld cords:
+12445 |> x
+9853 |> z
+
+floor(x / 8) = |> neth_x
+floor(z / 8) = |> neth_z
+
+Nether cords:
+neth_x =
+neth_z =
+
+
+Pointless thingy:
+
+37 |> cube_side
+
+cube_side ^ 3 = |> blocks
+ceil(blocks / 64) = |> stacks
+ceil(stacks / 9) = |> rows
+stacks * 64 - blocks = |> rem
+
+ceil(rows / 6) = |> dub_chests
+ceil(rows / 3) = |> sb
+
+dub_chests =
+sb =
+stacks =
+rem =
