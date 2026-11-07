@@ -1,4 +1,4 @@
-use std::{collections::HashMap, f64::consts::PI, fs, path::Path};
+use std::{collections::HashMap, f64::consts::PI, fs, io::Read, path::Path};
 
 #[derive(Debug)]
 enum Token {
@@ -85,21 +85,32 @@ fn eval(tokens: &[Token], vars: &HashMap<String, f64>) -> f64 {
     let mut pos = 0;
 
     fn sum(pos: &mut usize, tokens: &[Token], vars: &HashMap<String, f64>) -> f64 {
-        let mut res = 0.0;
-        while let Some(t) = tokens.get(*pos) {
-            if matches!(t, Token::RParen) { break; }
-            res += term(pos, tokens, vars);
+        let mut res = term(pos, tokens, vars);
+        loop {
+            match tokens.get(*pos) {
+                Some(Token::Plus)  => { *pos += 1; res += term(pos, tokens, vars); }
+                Some(Token::Minus) => { *pos += 1; res -= term(pos, tokens, vars); }
+                _ => break,
+            }
         }
         res
     }
 
-    fn power(pos: &mut usize, tokens: &[Token], vars: &HashMap<String, f64>) -> f64 {
-        let mut val = probe(pos, tokens, vars);
-        while let Some(Token::Caret) = tokens.get(*pos) {
-            *pos += 1;
-            val = val.powf(probe(pos, tokens, vars));
+    fn unary(pos: &mut usize, tokens: &[Token], vars: &HashMap<String, f64>) -> f64 {
+        match tokens.get(*pos) {
+            Some(Token::Minus) => { *pos += 1; -unary(pos, tokens, vars) }
+            Some(Token::Plus)  => { *pos += 1; unary(pos, tokens, vars) }
+            _ => power(pos, tokens, vars),
         }
-        val
+    }
+    
+    fn power(pos: &mut usize, tokens: &[Token], vars: &HashMap<String, f64>) -> f64 {
+        let base = probe(pos, tokens, vars);
+        if let Some(Token::Caret) = tokens.get(*pos) {
+            *pos += 1;
+            return base.powf(unary(pos, tokens, vars));
+        }
+        base
     }
     
     fn probe(pos: &mut usize, tokens: &[Token], vars: &HashMap<String, f64>) -> f64 {
@@ -144,13 +155,13 @@ fn eval(tokens: &[Token], vars: &HashMap<String, f64>) -> f64 {
     }
 
     fn term(pos: &mut usize, tokens: &[Token], vars: &HashMap<String, f64>) -> f64 {
-        let mut val = power(pos, tokens, vars);
+        let mut val = unary(pos, tokens, vars);
         loop {
             match tokens.get(*pos) {
-                Some(Token::Star)  => { *pos += 1; val *= power(pos, tokens, vars); }
-                Some(Token::Slash) => { *pos += 1; val /= power(pos, tokens, vars); }
-                Some(Token::Modulo) => { *pos += 1; val %= power(pos, tokens, vars); }
-                Some(Token::FloorDivision) => { *pos += 1; val = (val / power(pos, tokens, vars)).floor(); }
+                Some(Token::Star)  => { *pos += 1; val *= unary(pos, tokens, vars); }
+                Some(Token::Slash) => { *pos += 1; val /= unary(pos, tokens, vars); }
+                Some(Token::Modulo) => { *pos += 1; val %= unary(pos, tokens, vars); }
+                Some(Token::FloorDivision) => { *pos += 1; val = (val / unary(pos, tokens, vars)).floor(); }
                 
                 _ => break,
             }
@@ -160,7 +171,7 @@ fn eval(tokens: &[Token], vars: &HashMap<String, f64>) -> f64 {
 
     let res = sum(&mut pos, tokens, vars);
     if pos < tokens.len() {
-        panic!("unexpected )");
+        panic!("unexpected token: {:?}", tokens[pos]);
     }
         
     res
@@ -228,6 +239,9 @@ fn process_line(line: &str, vars: &mut HashMap<String, f64>) -> String {
 }
 
 fn main() {
+    let mut contents = String::new();
+    std::io::stdin().read_to_string(&mut contents).expect("Failed to read stdin");
+    print!("{}", process_file(&contents));
     // println!("{:?}", tokenize("2 + 3.5 * sqrt(4)"));
     // println!("{:?}", tokenize("iron_plate * 2"));
 
@@ -238,14 +252,14 @@ fn main() {
 
     // println!("Result: {:?}", result);
 
-    let path = Path::new("test.lichba");
-    if !path.is_file() {
-        panic!("File not found!")
-    }
-
-    let contents = fs::read_to_string(path).expect("Should have been able to read the file");
-
-    let processed = process_file(&contents);
-
-    fs::write(path, processed).expect("Failed to write");
+//     let path = Path::new("test.lichba");
+//     if !path.is_file() {
+//         panic!("File not found!")
+//     }
+// 
+//     let contents = fs::read_to_string(path).expect("Should have been able to read the file");
+// 
+//     let processed = process_file(&contents);
+// 
+//     fs::write(path, processed).expect("Failed to write");
 }
